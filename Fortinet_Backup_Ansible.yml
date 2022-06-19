@@ -1,0 +1,25 @@
+---
+    - hosts: forti
+      connection: httpapi
+      collections:
+        - fortinet.fortios
+      vars:
+        vdom: "root"
+        ansible_httpapi_use_ssl: yes
+        ansible_httpapi_validate_certs: no
+        ansible_httpapi_port: 7777
+        username: "admin"
+        password: ""
+        #token: 
+      tasks:
+      - name: backup a_specific_vdom settings
+        fortios_system_config_backup_restore:
+         config: "system config backup"
+         username: "{{ username }}"
+         password: "{{ password }}"
+         vdom: "{{ vdom }}"
+         backup: "yes"
+         ssl_verify: False
+         https: True
+         scope: "vdom"
+         filename: "/tmp/backup_vdom"
