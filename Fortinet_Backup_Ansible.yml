@@ -5,21 +5,17 @@
         - fortinet.fortios
       vars:
         vdom: "root"
-        ansible_httpapi_use_ssl: yes
+        ansible_httpapi_use_ssl: yes #if ssl wrong version err then no
         ansible_httpapi_validate_certs: no
         ansible_httpapi_port: 443
-        username: "admin"
-        password: ""
         #token: 
       tasks:
       - name: backup a_specific_vdom settings
         fortios_system_config_backup_restore:
          config: "system config backup"
-         username: "{{ username }}"
-         password: "{{ password }}"
          vdom: "{{ vdom }}"
          backup: "yes"
          ssl_verify: False
          https: True
-         scope: "vdom"
+         scope: "vdom" # or global
          filename: "/tmp/backup_vdom"
