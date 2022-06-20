@@ -16,6 +16,26 @@ source ~/.bashrc
 # install fortios module
 ansible-galaxy collection install fortinet.fortios
 -----------------------------------------------------------------------------------------------------------------------
+ The error was: TypeError: FortiOSHandler.__init__() missing 1 required positional argument: 'mod'
+ 
+ 
+ 
+ 
+ 
+ -----------------------------------------------------------------------------------------------------------------------
+ The error was: PermissionError: [Errno 13] Permission denied: '/tmp/fortios.ansible.log'
+ 
+ 
+ 
+ 
+ -----------------------------------------------------------------------------------------------------------------------
+ ERROR! couldn't resolve module/action 'fortios_system_config_backup_restore'. This often indicates a misspelling, missing collection, or incorrect module path.
+ 
+ 
+ 
+ 
+ 
+-----------------------------------------------------------------------------------------------------------------------
 Host file must include ansible_user, ansible_password, ansible_network_os
 -----------------------------------------------------------------------------------------------------------------------
 If you get rsyslog errors
