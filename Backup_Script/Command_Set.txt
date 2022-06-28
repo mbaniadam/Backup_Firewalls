@@ -1,0 +1,9 @@
+cli
+request system configuration rescue save
+start shell
+cd /config
+tftp
+connect <TFTP-Server>
+put rescue.conf.gz
+
+
