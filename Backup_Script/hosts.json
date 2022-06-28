@@ -1,0 +1,5 @@
+{
+    "host": "SRX_Test",
+    "device_type": "juniper_junos","ip": "172.16.1.100",
+    "username": "root", "password": "password
+}
