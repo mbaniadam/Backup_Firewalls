@@ -1,0 +1,113 @@
+from asyncore import write
+from distutils.log import error
+import json
+import ipaddress
+from select import select
+from click import prompt
+from netmiko import (
+    ConnectHandler,
+    NetmikoTimeoutException,
+    NetmikoAuthenticationException,
+)
+import datetime
+
+
+def sendCommand(device, commands):
+    result = {}
+    try:
+        with ConnectHandler(**device) as ssh:
+            ssh.enable()
+            for command in commands:
+                # print(command)
+                output = ssh.send_command(command, expect_string=r"%|>|#")
+                # print(output)
+                result[command] = output
+        return result
+    except (NetmikoTimeoutException, NetmikoAuthenticationException) as error:
+        print(error)
+
+
+def getConfig(device, command):
+    try:
+        with ConnectHandler(**device) as ssh:
+            current_time = datetime.datetime.today().strftime('%Y_%b_%d')
+            fileNameString = 'Backup_' + \
+                str(device['host']) + '_' + str(current_time) + '.txt'
+            ssh.enable()
+            output = ssh.send_command(command, expect_string=r"%|>|#")
+            # w  >>> Opens a file for writing. Creates a new file if it does not exist or truncates the file if it exists.
+            with open(str(fileNameString), 'w') as f:
+                for line in output:
+                    f.write(line)
+        return True
+    except (NetmikoTimeoutException, NetmikoAuthenticationException) as error:
+        print(error)
+
+
+def validate_ip_address(address):
+    try:
+        ipaddress.ip_address(address)
+        return True
+    except ValueError:
+        print("IP address {} is not valid\nTry again!".format(address))
+# Function to get TFTP server address
+
+
+def getTFTP():
+    try:
+        while True:
+            TFTP_SRV = input(str("Please enter tftp server ip: "))
+            if validate_ip_address(TFTP_SRV) == True:
+                return TFTP_SRV
+    except ValueError:
+        print("Error")
+
+
+if __name__ == "__main__":
+    current_time = datetime.datetime.today().strftime('%Y_%b_%d')
+    hosts = json.load(open("hosts.json"))
+    prompt_all = input(
+        "Backup all devices from hosts.json? (y/n) ")
+    if prompt_all == "y":
+        prompt_tftp = input(
+            "Send backup to TFTP server or get directly from Device?(y/n) ")
+        if prompt_tftp == "y":
+            enteredTFTP = getTFTP()
+            print(f"TFTP server {enteredTFTP} selected.")
+            print("Please wait...")
+            for device in hosts:
+                # Juniper
+                if device["device_type"] == "juniper_junos":
+                    CM_Set = ["cli", "start shell", "cd /config", "tftp",
+                              "connect "+enteredTFTP, "put rescue.conf.gz"]
+                    sendCommand(device, CM_Set)
+                # Fortinet
+                elif device["device_type"] == "fortinet":
+                    CM_Set = [
+                        f"execute backup config tftp FortiBackup {enteredTFTP}"]
+                    sendCommand(device, CM_Set)
+                # Cisco
+                elif device["device_type"] == "cisco.ios":
+                    (device, "show running-configuration")
+                    print("send Command for cisco will be add here")
+# If user want to select device
+    elif prompt_all == "n":
+        prompt_which_vendor = input(
+            "\n\n1.Fortinet\n2.Juniper\n3.Cisco\n\nSelect vendor you want to backup: ")
+        for device in hosts:
+            # Fortinet Devices
+            if prompt_which_vendor == "1" and device["device_type"] == "fortinet":
+                getConfig(device, "show full-configuration")
+            # Juniper Devices
+            elif prompt_which_vendor == "2" and device["device_type"] == "juniper_junos":
+                print("Juniper selected")
+                with open('Command_Set.txt') as f:
+                    CM_Set = [line.rstrip('\n') for line in f]
+                    getConfig(device, "show configuration | display set")
+            elif prompt_which_vendor == "3" and device["device_type"] == "cisco.ios":
+                print("Cisco selected")
+                getConfig(device, "show running-configuration")
+            else:
+                print("Device not found!")
+    else:
+        print("wrong input!")
