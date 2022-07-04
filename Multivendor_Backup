@@ -1,7 +1,10 @@
 from asyncore import write
+from multiprocessing import Process
 from distutils.log import error
 import json
 import ipaddress
+import sys
+import time
 from select import select
 from click import prompt
 from netmiko import (
@@ -18,9 +21,9 @@ def sendCommand(device, commands):
         with ConnectHandler(**device) as ssh:
             ssh.enable()
             for command in commands:
-                # print(command)
+                print(command)
                 output = ssh.send_command(command, expect_string=r"%|>|#")
-                # print(output)
+                print(output)
                 result[command] = output
         return result
     except (NetmikoTimeoutException, NetmikoAuthenticationException) as error:
@@ -62,48 +65,168 @@ def getTFTP():
     except ValueError:
         print("Error")
 
+# Function for loading
+
+
+def _loading():
+    print("Working! ")
+    #animation = ["10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"]
+    animation = ["[■□□□□□□□□□]", "[■■□□□□□□□□]", "[■■■□□□□□□□]", "[■■■■□□□□□□]", "[■■■■■□□□□□]",
+                 "[■■■■■■□□□□]", "[■■■■■■■□□□]", "[■■■■■■■■□□]", "[■■■■■■■■■□]", "[■■■■■■■■■■]"]
+
+    for i in range(len(animation)):
+        time.sleep(0.3)
+        sys.stdout.write("\r" + animation[i % len(animation)])
+        sys.stdout.flush()
+    print("\n")
+
 
 if __name__ == "__main__":
     current_time = datetime.datetime.today().strftime('%Y_%b_%d')
     hosts = json.load(open("hosts.json"))
     prompt_all = input(
-    "Backup all devices from hosts.json? (y/n) ")
-    # If user want to backup all device
-    if prompt_all == "y":
-        TFTP = "x.x.x.x"
+        "Backup all devices from hosts.json? (y/n) ")
+    prompt_tftp = input(
+        "Backup to TFTP? (y/n) ")
+    # If user want to backup all device and with TFTP
+    if prompt_all == "y" and prompt_tftp == "y":
+        # prompt_tftp = input(
+        #     "Send backup to TFTP server or get directly from Device?(y/n) ")
+        # if prompt_tftp == "y":
+        #     enteredTFTP = getTFTP()
+        #     print(f"TFTP server {enteredTFTP} selected.")
+        TFTP = "172.20.140.39"
         print("Please wait...")
-        # Juniper
         for device in hosts:
+            # Juniper
             if device["device_type"] == "juniper_junos":
+                print(f"{device['host']} is selected")
                 CM_Set = ["cli", "start shell", "cd /config", "tftp",
-                            "connect "+TFTP, "put rescue.conf.gz"]
-                sendCommand(hosts, CM_Set)
+                          "connect "+TFTP, "put rescue.conf.gz"]
+                sendCommand(device, CM_Set)
+                _loading()
             # Fortinet
             elif device["device_type"] == "fortinet":
+                print(f"{device['host']} is selected")
                 CM_Set = [
                     f"execute backup config tftp FortiBackup {TFTP}"]
                 sendCommand(device, CM_Set)
+                _loading()
             # Cisco
             elif device["device_type"] == "cisco.ios":
-                (device, "show running-configuration")
+                print(f"{device['host']} selected")
+                #sendCommand(device, "show running-configuration")
                 print("send Command for cisco will be add here")
+                _loading()
+            # Sophos
+            elif device["device_type"] == "sophos":
+                print(f"{device['host']} is selected")
+                print("send Command for sophos will be add here")
+                _loading()
             else:
                 print("error on prompt all y")
-    # If user want to select device
-    elif prompt_all == "n":
-            for device in hosts:
-                prompt_which_vendor = input(
-                    "\n\n1.Fortinet\n2.Juniper\n3.Cisco\n\nSelect vendor you want to backup: ")
-                # Fortinet Devices
-                if prompt_which_vendor == "1" and device["device_type"] == "fortinet":
-                    print(f"{device['host']} selected")
-                    getConfig(device, "show full-configuration")
-                # Juniper Devices
-                elif prompt_which_vendor == "2" and device["device_type"] == "juniper_junos":
-                    print(f"{device['host']} selected")
-                    getConfig(device, "show configuration | display set")
-                elif prompt_which_vendor == "3" and device["device_type"] == "cisco.ios":
-                    print(f"{device['host']} selected")
-                    getConfig(device, "show running-configuration")
-                else:
-                    print("Error")
+    # If user want to backup all device and without TFTP
+    elif prompt_all == "y" and prompt_tftp == "n":
+        
+        for device in hosts:
+            # Fortinet
+            if device["device_type"] == "fortinet":
+                # print(device)
+                print(f"{device['host']} is selected")
+                getConfig(device, "show full-configuration")
+            # Juniper
+            elif device["device_type"] == "juniper_junos":
+                print(f"{device['host']} is selected")
+                getConfig(device, "show configuration | display set")
+            # Cisco
+            elif device["device_type"] == "cisco.ios":
+                print(f"{device['host']} is selected")
+                getConfig(device, "show running-configuration")
+            # Sophos
+            elif device["device_type"] == "sophos":
+                    print(f"{device['host']} is selected")
+            # F5 BIG-IP
+            elif device["device_type"] == "F5-BIG-IP":
+                print(f"{device['host']} is selected")
+            else:
+                print("Device not found!")
+    # If user want to select vendor and with TFTP
+    elif prompt_all == "n" and prompt_tftp == "y":
+        TFTP = "172.20.140.39"
+        print("Please wait...")
+        prompt_which_vendor = input(
+            "\n\n1.Fortinet\n2.Juniper\n3.Cisco\n4.Sophos\n5.F5 BIG-IP\n\nSelect vendor you want to backup: ")
+        # Fortinet
+        if prompt_which_vendor == "1":
+            #
+            device = next(
+                host for host in hosts if host["device_type"] == "fortinet")
+            print(f"{device['host']} is selected")
+            CM_Set = [
+                f"execute backup config tftp FortiBackup {TFTP}"]
+            sendCommand(device, CM_Set)
+            _loading()
+        # Juniper
+        elif prompt_which_vendor == "2":
+            device = next(
+                host for host in hosts if host["device_type"] == "juniper_junos")
+            print(f"{device['host']} is selected")
+            CM_Set = ["cli", "start shell", "cd /config", "tftp",
+                        "connect "+TFTP, "put rescue.conf.gz"]
+            sendCommand(device, CM_Set)
+            _loading()
+        # Cisco
+        elif prompt_which_vendor == "3":
+            device = next(
+                host for host in hosts if host["device_type"] == "cisco.ios")
+            print(f"{device['host']} is selected")
+        # Sophos
+        elif prompt_which_vendor == "4":
+            device = next(
+                host for host in hosts if host["device_type"] == "sophos")
+            print(f"{device['host']} is selected")
+        # F5 BIG-IP
+        elif prompt_which_vendor == "5":
+            device = next(
+                host for host in hosts if host["device_type"] == "F5-BIG-IP")
+            print(f"{device['host']} is selected")
+        else:
+            print("Device not found!")
+    # If user want to select vendor and without TFTP server
+    elif prompt_all == "n" and prompt_tftp == "n":
+        prompt_which_vendor = input(
+            "\n\n1.Fortinet\n2.Juniper\n3.Cisco\n4.Sophos\n5.F5 BIG-IP\n\nSelect vendor you want to backup: ")
+        # Fortinet
+        if prompt_which_vendor == "1":
+            #
+            device = next(
+                host for host in hosts if host["device_type"] == "fortinet")
+            # print(device)
+            print(f"{device['host']} is selected")
+            getConfig(device, "show full-configuration")
+        # Juniper
+        elif prompt_which_vendor == "2":
+            device = next(
+                host for host in hosts if host["device_type"] == "juniper_junos")
+            print(f"{device['host']} is selected")
+            getConfig(device, "show configuration | display set")
+        # Cisco
+        elif prompt_which_vendor == "3":
+            device = next(
+                host for host in hosts if host["device_type"] == "cisco.ios")
+            print(f"{device['host']} is selected")
+            getConfig(device, "show running-configuration")
+        # Sophos
+        elif prompt_which_vendor == "4":
+            device = next(
+                host for host in hosts if host["device_type"] == "sophos")
+            print(f"{device['host']} is selected")
+        # F5 BIG-IP
+        elif prompt_which_vendor == "5":
+            device = next(
+                host for host in hosts if host["device_type"] == "F5-BIG-IP")
+            print(f"{device['host']} is selected")
+        else:
+            print("Device not found!")
+    else:
+        print("wrong input!")
