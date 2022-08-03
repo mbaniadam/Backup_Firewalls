@@ -10,7 +10,7 @@ from nornir.core.exceptions import NornirExecutionError
 import logging
 
 def save_config_to_file(type, hostname, config):
-    filename = f"{hostname}-{dateTime}.cfg"
+    filename = f"{hostname}_{dateTime}.cfg"
     if type == "ssh":
         with open(os.path.join(BACKUP_DIR, filename), "w",encoding="utf-8") as f:
             f.write(config)
