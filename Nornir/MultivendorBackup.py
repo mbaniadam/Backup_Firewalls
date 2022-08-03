@@ -1,70 +1,81 @@
+from asyncio import tasks
 import requests
 import os
 import datetime
 from nornir import InitNornir
 from nornir_netmiko.tasks import netmiko_send_command
-from napalm.base import get_network_driver
-from nornir_napalm.plugins.tasks import napalm_get
 from nornir_utils.plugins.functions import print_result
+from nornir.core.task import Task, Result
+from nornir.core.exceptions import NornirExecutionError
+import logging
 
 def save_config_to_file(type, hostname, config):
     filename = f"{hostname}-{dateTime}.cfg"
     if type == "ssh":
-        with open(os.path.join(BACKUP_DIR, filename), "w") as f:
+        with open(os.path.join(BACKUP_DIR, filename), "w",encoding="utf-8") as f:
             f.write(config)
-        return True
+        print(f"{hostname} >>> backup file was created successfully!")
     elif type == "http":
         with open(os.path.join(BACKUP_DIR, filename), "wb") as f:
-            for line in config:
-                f.write(line)
-        print(f"{hostname} Backup is succesful!")
-        return True
+                f.write(config.content)
+        print(f"{hostname} >>> backup file was created successfully!")
     else:
         print("Hostname is unknown!")
-        return False
 
-def get_juniper_backups():
+def get_juniper_backups()-> Result:
     junos = nr.filter(platform="junos")
     backup_results = junos.run(
         task=netmiko_send_command,
-        command_string="show config | display set")
-
+        command_string="show config | display set",severity_level=logging.DEBUG)
+    print_result(backup_results)
     for hostname in backup_results:
-        if save_config_to_file(
-                type="ssh",
-                hostname=hostname,
-                config=backup_results[hostname][0].result,):
-            print(f"{hostname} Backup is succesful!")
-            # print("changed: ", backup_results[hostname].changed)
-            # print("failed: ", backup_results[hostname].failed)
+        save_config_to_file(
+            type="ssh",
+            hostname=hostname,
+            config=backup_results[hostname][0].result,)
 
-
-def get_fortinet_backups():
+def get_fortinet_backups()-> Result:
     fortinet_http = nr.filter(platform="fortinet", type="http")
-    fortinet_ssh = nr.filter(platform="fortinet", type="ssh")
-    hostname = fortinet_http.inventory.hosts[host].hostname
-    port = fortinet_http.inventory.hosts[host].port
-    access_token = fortinet_http.inventory.hosts[host].password
+    print("***************** Fortinet_HTTP *****************")
     for host in fortinet_http.inventory.hosts:
+        hostname = fortinet_http.inventory.hosts[host].hostname
+        port = fortinet_http.inventory.hosts[host].port
+        access_token = fortinet_http.inventory.hosts[host].password
         requests.packages.urllib3.disable_warnings()
         apiUrl = f"https://{hostname}:{port}/api/v2/monitor/system/config/backup?scope=global&access_token={access_token}"
         # print(apiUrl)
-        data = requests.get(apiUrl, verify=False)
+        payload = {}
+        data = requests.request("GET",apiUrl, verify=False,data=payload)
         save_config_to_file(type="http", hostname=host, config=data)
-    backup_results = fortinet_ssh.run(
-        task=netmiko_send_command,
-        command_string="show")
-    for hostname in backup_results:
-        if save_config_to_file(
-                type="ssh",
-                hostname=hostname,
-                config=backup_results[hostname][0].result,):
-            print(f"{hostname} Backup is succesful!")
 
+# def get_napalm_backups():
+#     fortinet_ssh = nr.filter(platform="junos", type="ssh")
+#     backup_results = fortinet_ssh.run(task=napalm_get, getters=["config"])
+#     for hostname in backup_results:
+#         config = backup_results[hostname][0].result["config"]
+#         print_result(config)
+#         print(config)
+#         save_config_to_file(type="ssh", hostname=hostname, config=config)
+
+
+def get_fortinet_ssh_backup() -> Result:
+        fortinet_ssh = nr.filter(platform="fortinet", type="ssh")
+        #try:
+        backup_results = fortinet_ssh.run(
+        task=netmiko_send_command,
+        command_string="show",severity_level=logging.DEBUG)
+        print_result(backup_results)
+        for host in backup_results:
+            save_config_to_file(
+                type="ssh",
+                hostname=host,
+                config=backup_results[host][0].result,)
+            
 if __name__ == "__main__":
-    nr = InitNornir('config.yaml')
+    nr = InitNornir('config.yaml',core={"raise_on_error": True})
     BACKUP_DIR = "."
     dateTime = datetime.datetime.today().strftime('%Y_%b_%d')
-    FTP = "192.168.1.100"
+    FTP = "192.168.100.13"
     get_juniper_backups()
     get_fortinet_backups()
+    get_fortinet_ssh_backup()
