@@ -64,7 +64,7 @@ def get_fortinet_ssh_backup() -> Result:
 if __name__ == "__main__":
     nr = InitNornir('config.yaml',core={"raise_on_error": True})
     BACKUP_DIR = "."
-    dateTime = datetime.datetime.today().strftime('%Y_%b_%d')
+    dateTime = datetime.datetime.today().strftime('%Y_%m_%d_%H_%M')
     FTP = "192.168.100.13"
     get_juniper_backups()
     get_fortinet_backups()
