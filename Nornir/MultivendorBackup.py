@@ -48,16 +48,6 @@ def get_fortinet_backups()-> Result:
         data = requests.request("GET",apiUrl, verify=False,data=payload)
         save_config_to_file(type="http", hostname=host, config=data)
 
-# def get_napalm_backups():
-#     fortinet_ssh = nr.filter(platform="junos", type="ssh")
-#     backup_results = fortinet_ssh.run(task=napalm_get, getters=["config"])
-#     for hostname in backup_results:
-#         config = backup_results[hostname][0].result["config"]
-#         print_result(config)
-#         print(config)
-#         save_config_to_file(type="ssh", hostname=hostname, config=config)
-
-
 def get_fortinet_ssh_backup() -> Result:
         fortinet_ssh = nr.filter(platform="fortinet", type="ssh")
         #try:
